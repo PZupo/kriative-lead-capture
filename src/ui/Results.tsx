@@ -1,3 +1,5 @@
+import { useState, useMemo } from 'react';
+
 export type Lead = {
   id: string;
   nome: string;
@@ -24,29 +26,52 @@ export default function Results({
   onPrev: () => void;
   onNext: () => void;
 }) {
+
+  const [search, setSearch] = useState('');
+
+  const filteredLeads = useMemo(() => {
+    if (!search.trim()) return leads;
+    const s = search.toLowerCase();
+    return leads.filter(l =>
+      l.nome.toLowerCase().includes(s) ||
+      l.segmento.toLowerCase().includes(s)
+    );
+  }, [search, leads]);
+
+  const visible = filteredLeads;
+
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <section className="bg-card rounded-base border border-border p-4">
-      {/* topo: título + contagem + (na próxima etapa entra o campo Buscar aqui) */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+
+      {/* Topo: título + contagem */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <h2 className="font-semibold">Resultados</h2>
+
         <div className="text-sm opacity-70">
           {total ? `Exibindo ${from}–${to} de ${total} lead(s)` : '0 lead(s)'}
         </div>
       </div>
 
-      {!leads.length && (
+      {/* Campo de busca */}
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Buscar por nome ou segmento..."
+        className="w-full rounded-base border border-border bg-white px-3 py-2 mb-4"
+      />
+
+      {!visible.length && (
         <p className="opacity-70">
-          Use os filtros ao lado para simular uma busca. Os dados serão reais quando
-          ativarmos o Google Places.
+          Nenhum lead encontrado com esse termo.
         </p>
       )}
 
       <ul className="space-y-3">
-        {leads.map(l => (
+        {visible.map(l => (
           <li key={l.id} className="rounded-base border border-border p-3">
             <div className="font-semibold">{l.nome}</div>
             <div className="text-sm opacity-80">
@@ -75,9 +100,11 @@ export default function Results({
         >
           ◀ Anterior
         </button>
+
         <div className="text-sm opacity-70">
           Página {page} de {totalPages}
         </div>
+
         <button
           onClick={onNext}
           disabled={page >= totalPages}
@@ -86,6 +113,7 @@ export default function Results({
           Próxima ▶
         </button>
       </div>
+
     </section>
   );
 }
