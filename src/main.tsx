@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import Navbar from './ui/Navbar';
@@ -16,17 +16,38 @@ export type Campaign = {
   createdAt: string;
 };
 
+const LS_KEY = 'kriative_campaigns';
+
 function App() {
-  // estado dos filtros
+  // filtros da busca atual
   const [categoria, setCategoria] = useState('');
   const [nicho, setNicho] = useState('');
   const [cidade, setCidade] = useState('');
   const [uf, setUf] = useState('');
   const [cep, setCep] = useState('');
 
-  // leads mock para visual
+  // campanhas salvas
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+
+  // carregar do localStorage ao iniciar
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) setCampaigns(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // util: persistir campanhas
+  function persist(next: Campaign[]) {
+    setCampaigns(next);
+    localStorage.setItem(LS_KEY, JSON.stringify(next));
+  }
+
+  // leads mock (apenas visual)
   const leads: Lead[] = useMemo(() => {
-    if (!categoria && !cidade && !uf && !nicho) return [];
+    if (!categoria && !cidade && !uf && !nicho && !cep) return [];
     const base = [
       { nome: 'Clínica Bem Viver', cidade: 'São Paulo', uf: 'SP', segmento: 'Terapias integrativas' },
       { nome: 'Espaço Harmonia', cidade: 'Campinas', uf: 'SP', segmento: 'Acupuntura' },
@@ -49,26 +70,46 @@ function App() {
         fonte: 'Mock' as const,
         data: new Date().toISOString()
       }));
-  }, [cidade, uf, nicho, categoria]);
+  }, [cidade, uf, nicho, categoria, cep]);
 
-  // salvar campanha no localStorage (MVP)
+  // ações
   function saveCampaign() {
-    const campaigns: Campaign[] = JSON.parse(localStorage.getItem('kriative_campaigns') || '[]');
     const newCamp: Campaign = {
       id: crypto.randomUUID(),
-      nome: `${categoria || 'Geral'} - ${cidade || uf || 'Brasil'}`,
-      categoria,
-      nicho,
-      cidade,
-      uf,
-      cep: cep || undefined,
+      nome: `${categoria || 'Geral'} • ${nicho || 'Todos'} • ${cidade || uf || 'Brasil'}`,
+      categoria, nicho, cidade, uf, cep: cep || undefined,
       createdAt: new Date().toISOString()
     };
-    localStorage.setItem('kriative_campaigns', JSON.stringify([newCamp, ...campaigns]));
+    persist([newCamp, ...campaigns]);
     alert('Campanha salva com sucesso');
   }
 
-  // exportar CSV da busca atual
+  function loadCampaign(c: Campaign) {
+    setCategoria(c.categoria || '');
+    setNicho(c.nicho || '');
+    setCidade(c.cidade || '');
+    setUf(c.uf || '');
+    setCep(c.cep || '');
+  }
+
+  function deleteCampaign(id: string) {
+    if (!confirm('Excluir esta campanha?')) return;
+    persist(campaigns.filter(c => c.id !== id));
+  }
+
+  function duplicateCampaign(id: string) {
+    const found = campaigns.find(c => c.id === id);
+    if (!found) return;
+    const copy: Campaign = {
+      ...found,
+      id: crypto.randomUUID(),
+      nome: `${found.nome} (cópia)`,
+      createdAt: new Date().toISOString()
+    };
+    persist([copy, ...campaigns]);
+  }
+
+  // exportar CSV dos leads atuais
   function exportCSV() {
     if (!leads.length) {
       alert('Nenhum lead para exportar');
@@ -89,11 +130,15 @@ function App() {
   return (
     <div className="min-h-screen bg-bg text-fg">
       <Navbar />
-      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 p-4">
+      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 p-4">
         <Sidebar
           values={{ categoria, nicho, cidade, uf, cep }}
           onChange={{ setCategoria, setNicho, setCidade, setUf, setCep }}
           actions={{ saveCampaign, exportCSV }}
+          campaigns={campaigns}
+          onLoadCampaign={loadCampaign}
+          onDeleteCampaign={deleteCampaign}
+          onDuplicateCampaign={duplicateCampaign}
         />
         <Results leads={leads} />
       </div>
