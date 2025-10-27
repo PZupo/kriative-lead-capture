@@ -5,5 +5,5 @@ export default function Navbar() {
         Kriative Lead Capture
       </h1>
     </header>
-  )
+  );
 }
