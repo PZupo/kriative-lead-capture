@@ -12,25 +12,21 @@ type Change = {
 type Actions = { saveCampaign: () => void; exportCSV: () => void };
 
 type Campaign = {
-  id: string;
-  nome: string;
-  categoria: string;
-  nicho: string;
-  cidade: string;
-  uf: string;
-  cep?: string;
-  createdAt: string;
+  id: string; nome: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string;
 };
 
 export default function Sidebar({
   values, onChange, actions,
-  campaigns, onLoadCampaign, onDeleteCampaign, onDuplicateCampaign
+  campaigns, onLoadCampaign, onDeleteCampaign, onDuplicateCampaign,
+  onExportCampaignsJSON, onImportCampaignsJSON
 }: {
   values: Values; onChange: Change; actions: Actions;
   campaigns: Campaign[];
   onLoadCampaign: (c: Campaign) => void;
   onDeleteCampaign: (id: string) => void;
   onDuplicateCampaign: (id: string) => void;
+  onExportCampaignsJSON: () => void;
+  onImportCampaignsJSON: (file: File) => void;
 }) {
   const { categoria, nicho, cidade, uf, cep } = values;
   const { setCategoria, setNicho, setCidade, setUf, setCep } = onChange;
@@ -41,8 +37,6 @@ export default function Sidebar({
     { id: 'campanhas', label: 'Campanhas' }
   ] as const;
   type Tab = typeof tabs[number]['id'];
-
-  // ✅ usar useState importado (sem React.useState)
   const [active, setActive] = useState<Tab>('filtros');
 
   return (
@@ -126,12 +120,41 @@ export default function Sidebar({
       )}
 
       {active === 'campanhas' && (
-        <Campaigns
-          items={campaigns}
-          onLoad={onLoadCampaign}
-          onDelete={onDeleteCampaign}
-          onDuplicate={onDuplicateCampaign}
-        />
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">Campanhas salvas</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={onExportCampaignsJSON}
+                className="text-sm px-3 py-1 rounded-base border border-border bg-white"
+                title="Exportar campanhas (.json)"
+              >
+                Exportar JSON
+              </button>
+
+              <label className="text-sm px-3 py-1 rounded-base border border-border bg-white cursor-pointer">
+                Importar JSON
+                <input
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) onImportCampaignsJSON(f);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          <Campaigns
+            items={campaigns}
+            onLoad={onLoadCampaign}
+            onDelete={onDeleteCampaign}
+            onDuplicate={onDuplicateCampaign}
+          />
+        </>
       )}
     </aside>
   );
