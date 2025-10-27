@@ -18,6 +18,44 @@ export type Campaign = {
 
 const LS_KEY = 'kriative_campaigns';
 
+type Template = {
+  id: string;
+  label: string;
+  categoria: string;
+  nicho: string;
+  cidade: string;
+  uf: string;
+  cep?: string;
+};
+
+// Modelos rápidos (pode editar/expandir depois)
+const TEMPLATES: Template[] = [
+  {
+    id: 'psicologia_sp',
+    label: 'Psicologia • São Paulo SP',
+    categoria: 'Clínicas e terapias',
+    nicho: 'Psicologia',
+    cidade: 'São Paulo',
+    uf: 'SP'
+  },
+  {
+    id: 'acupuntura_rj',
+    label: 'Acupuntura • Rio de Janeiro RJ',
+    categoria: 'Estúdios de bem estar',
+    nicho: 'Acupuntura',
+    cidade: 'Rio de Janeiro',
+    uf: 'RJ'
+  },
+  {
+    id: 'yoga_bh',
+    label: 'Yoga • Belo Horizonte MG',
+    categoria: 'Academias e yoga',
+    nicho: 'Yoga',
+    cidade: 'Belo Horizonte',
+    uf: 'MG'
+  }
+];
+
 function App() {
   // filtros
   const [categoria, setCategoria] = useState('');
@@ -30,13 +68,12 @@ function App() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // loading suave quando filtros mudam
+  // loading curto ao mudar filtros
   const [loading, setLoading] = useState(false);
 
   // campanhas
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
-  // carregar campanhas salvas
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -49,7 +86,7 @@ function App() {
     localStorage.setItem(LS_KEY, JSON.stringify(next));
   }
 
-  // gerar vários leads mock e aplicar filtros
+  // leads mock + filtros
   const allLeads: Lead[] = useMemo(() => {
     const base = [
       { nome: 'Clínica Bem Viver', cidade: 'São Paulo', uf: 'SP', segmento: 'Terapias integrativas' },
@@ -77,11 +114,11 @@ function App() {
       .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()));
   }, [cidade, uf, nicho, categoria, cep]);
 
-  // quando filtros mudarem: volta página e mostra loading curto
+  // reset pagina/mostrar loading nos filtros
   useEffect(() => {
     setPage(1);
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 400); // sensação pro
+    const t = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(t);
   }, [cidade, uf, nicho, categoria, cep]);
 
@@ -90,7 +127,7 @@ function App() {
   const end = Math.min(start + pageSize, total);
   const pageLeads = allLeads.slice(start, end);
 
-  // ações de campanhas
+  // ações de campanha
   function saveCampaign() {
     const newCamp: Campaign = {
       id: crypto.randomUUID(),
@@ -145,7 +182,7 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-  // JSON das campanhas (backup/compartilhar)
+  // JSON das campanhas
   function exportCampaignsJSON() {
     const blob = new Blob([JSON.stringify(campaigns, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -160,7 +197,6 @@ function App() {
     try {
       const text = await file.text();
       const arr = JSON.parse(text) as Campaign[];
-      // validação simples + deduplicação por id
       const valid = Array.isArray(arr) ? arr.filter(x => x && x.id && x.nome) : [];
       const exists = new Set(campaigns.map(c => c.id));
       const merged = [...valid.filter(v => !exists.has(v.id)), ...campaigns];
@@ -169,6 +205,26 @@ function App() {
     } catch {
       alert('Arquivo inválido. Selecione um JSON exportado pelo app.');
     }
+  }
+
+  // aplicar modelo
+  function applyTemplate(id: string) {
+    const tpl = TEMPLATES.find(t => t.id === id);
+    if (!tpl) return;
+    setCategoria(tpl.categoria);
+    setNicho(tpl.nicho);
+    setCidade(tpl.cidade);
+    setUf(tpl.uf);
+    setCep(tpl.cep || '');
+  }
+
+  // limpar filtros
+  function clearFilters() {
+    setCategoria('');
+    setNicho('');
+    setCidade('');
+    setUf('');
+    setCep('');
   }
 
   return (
@@ -185,6 +241,9 @@ function App() {
           onDuplicateCampaign={duplicateCampaign}
           onExportCampaignsJSON={exportCampaignsJSON}
           onImportCampaignsJSON={importCampaignsJSON}
+          templates={TEMPLATES}
+          onApplyTemplate={applyTemplate}
+          onClearFilters={clearFilters}
         />
         <Results
           leads={pageLeads}
