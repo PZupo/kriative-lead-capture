@@ -1,11 +1,12 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import './index.css'
 
 function App() {
   return (
-    <div style={{ padding: 32, fontFamily: 'sans-serif' }}>
-      <h1>Lead Capture — Health Check</h1>
-      <p>Se você vê isso, o React está renderizando.</p>
+    <div className="min-h-screen bg-bg text-fg p-8">
+      <h1 className="text-2xl font-bold">Lead Capture — CSS OK</h1>
+      <p className="mt-2">Se você vê fundo cinza e este texto, Tailwind está ativo.</p>
     </div>
   )
 }
