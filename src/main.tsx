@@ -4,6 +4,7 @@ import './index.css';
 import Navbar from './ui/Navbar';
 import Sidebar from './ui/Sidebar';
 import Results, { type Lead } from './ui/Results';
+import Wizard from './ui/Wizard';
 
 export type Campaign = {
   id: string;
@@ -16,8 +17,6 @@ export type Campaign = {
   createdAt: string;
 };
 
-const LS_KEY = 'kriative_campaigns';
-
 type Template = {
   id: string;
   label: string;
@@ -26,35 +25,11 @@ type Template = {
   cidade: string;
   uf: string;
   cep?: string;
+  createdAt: string;
 };
 
-// Modelos rápidos (pode editar/expandir depois)
-const TEMPLATES: Template[] = [
-  {
-    id: 'psicologia_sp',
-    label: 'Psicologia • São Paulo SP',
-    categoria: 'Clínicas e terapias',
-    nicho: 'Psicologia',
-    cidade: 'São Paulo',
-    uf: 'SP'
-  },
-  {
-    id: 'acupuntura_rj',
-    label: 'Acupuntura • Rio de Janeiro RJ',
-    categoria: 'Estúdios de bem estar',
-    nicho: 'Acupuntura',
-    cidade: 'Rio de Janeiro',
-    uf: 'RJ'
-  },
-  {
-    id: 'yoga_bh',
-    label: 'Yoga • Belo Horizonte MG',
-    categoria: 'Academias e yoga',
-    nicho: 'Yoga',
-    cidade: 'Belo Horizonte',
-    uf: 'MG'
-  }
-];
+const LS_KEY = 'kriative_campaigns';
+const LS_TPL = 'kriative_templates';
 
 function App() {
   // filtros
@@ -68,23 +43,42 @@ function App() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // loading curto ao mudar filtros
+  // loading
   const [loading, setLoading] = useState(false);
 
-  // campanhas
+  // campanhas e modelos
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+
+  // wizard modal
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) setCampaigns(JSON.parse(raw));
     } catch {}
+    try {
+      const rawT = localStorage.getItem(LS_TPL);
+      if (rawT) setTemplates(JSON.parse(rawT));
+    } catch {}
   }, []);
 
-  function persist(next: Campaign[]) {
+  function persistCampaigns(next: Campaign[]) {
     setCampaigns(next);
     localStorage.setItem(LS_KEY, JSON.stringify(next));
   }
+  function persistTemplates(next: Template[]) {
+    setTemplates(next);
+    localStorage.setItem(LS_TPL, JSON.stringify(next));
+  }
+
+  // modelos rápidos fixos (visuais)
+  const QUICK_TEMPLATES: Omit<Template, 'id' | 'createdAt'>[] = [
+    { label: 'Psicologia • São Paulo SP', categoria: 'Clínicas e terapias', nicho: 'Psicologia', cidade: 'São Paulo', uf: 'SP' },
+    { label: 'Acupuntura • Rio de Janeiro RJ', categoria: 'Estúdios de bem estar', nicho: 'Acupuntura', cidade: 'Rio de Janeiro', uf: 'RJ' },
+    { label: 'Yoga • Belo Horizonte MG', categoria: 'Academias e yoga', nicho: 'Yoga', cidade: 'Belo Horizonte', uf: 'MG' }
+  ];
 
   // leads mock + filtros
   const allLeads: Lead[] = useMemo(() => {
@@ -114,7 +108,7 @@ function App() {
       .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()));
   }, [cidade, uf, nicho, categoria, cep]);
 
-  // reset pagina/mostrar loading nos filtros
+  // reset de página e loading quando filtros mudam
   useEffect(() => {
     setPage(1);
     setLoading(true);
@@ -135,7 +129,7 @@ function App() {
       categoria, nicho, cidade, uf, cep: cep || undefined,
       createdAt: new Date().toISOString()
     };
-    persist([newCamp, ...campaigns]);
+    persistCampaigns([newCamp, ...campaigns]);
     alert('Campanha salva com sucesso');
   }
 
@@ -149,7 +143,7 @@ function App() {
 
   function deleteCampaign(id: string) {
     if (!confirm('Excluir esta campanha?')) return;
-    persist(campaigns.filter(c => c.id !== id));
+    persistCampaigns(campaigns.filter(c => c.id !== id));
   }
 
   function duplicateCampaign(id: string) {
@@ -161,10 +155,10 @@ function App() {
       nome: `${found.nome} (cópia)`,
       createdAt: new Date().toISOString()
     };
-    persist([copy, ...campaigns]);
+    persistCampaigns([copy, ...campaigns]);
   }
 
-  // CSV da página atual
+  // CSV: página atual
   function exportCSV() {
     if (!pageLeads.length) {
       alert('Nenhum lead para exportar');
@@ -172,17 +166,32 @@ function App() {
     }
     const header = ['nome', 'segmento', 'cidade', 'uf', 'telefone', 'fonte', 'data'];
     const rows = pageLeads.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
+    downloadCSV(header, rows, 'leads.csv');
+  }
+
+  // CSV: todos
+  function exportAllCSV() {
+    if (!allLeads.length) {
+      alert('Nenhum lead para exportar');
+      return;
+    }
+    const header = ['nome', 'segmento', 'cidade', 'uf', 'telefone', 'fonte', 'data'];
+    const rows = allLeads.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
+    downloadCSV(header, rows, 'leads_todos.csv');
+  }
+
+  function downloadCSV(header: string[], rows: (string | number)[][], filename: string) {
     const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'leads.csv';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  // JSON das campanhas
+  // JSON campanhas
   function exportCampaignsJSON() {
     const blob = new Blob([JSON.stringify(campaigns, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -200,22 +209,54 @@ function App() {
       const valid = Array.isArray(arr) ? arr.filter(x => x && x.id && x.nome) : [];
       const exists = new Set(campaigns.map(c => c.id));
       const merged = [...valid.filter(v => !exists.has(v.id)), ...campaigns];
-      persist(merged);
+      persistCampaigns(merged);
       alert(`Importadas ${merged.length - campaigns.length} campanha(s).`);
     } catch {
       alert('Arquivo inválido. Selecione um JSON exportado pelo app.');
     }
   }
 
-  // aplicar modelo
+  // modelos
+  function saveCurrentAsTemplate() {
+    if (!categoria && !nicho && !cidade && !uf && !cep) {
+      alert('Preencha pelo menos um filtro para salvar como modelo.');
+      return;
+    }
+    const label = prompt('Nome do modelo:', `${categoria || 'Geral'} • ${nicho || 'Todos'} • ${cidade || uf || ''}`.trim());
+    if (!label) return;
+    const tpl: Template = {
+      id: crypto.randomUUID(),
+      label,
+      categoria, nicho, cidade, uf, cep: cep || undefined,
+      createdAt: new Date().toISOString()
+    };
+    persistTemplates([tpl, ...templates]);
+    alert('Modelo salvo!');
+  }
+
   function applyTemplate(id: string) {
-    const tpl = TEMPLATES.find(t => t.id === id);
+    const tpl = templates.find(t => t.id === id);
     if (!tpl) return;
-    setCategoria(tpl.categoria);
-    setNicho(tpl.nicho);
-    setCidade(tpl.cidade);
-    setUf(tpl.uf);
+    setCategoria(tpl.categoria || '');
+    setNicho(tpl.nicho || '');
+    setCidade(tpl.cidade || '');
+    setUf(tpl.uf || '');
     setCep(tpl.cep || '');
+  }
+
+  function deleteTemplate(id: string) {
+    persistTemplates(templates.filter(t => t.id !== id));
+  }
+
+  // templates rápidos fixos
+  function applyQuickTemplate(label: string) {
+    const t = QUICK_TEMPLATES.find(x => x.label === label);
+    if (!t) return;
+    setCategoria(t.categoria);
+    setNicho(t.nicho);
+    setCidade(t.cidade);
+    setUf(t.uf);
+    setCep(t.cep || '');
   }
 
   // limpar filtros
@@ -241,9 +282,15 @@ function App() {
           onDuplicateCampaign={duplicateCampaign}
           onExportCampaignsJSON={exportCampaignsJSON}
           onImportCampaignsJSON={importCampaignsJSON}
-          templates={TEMPLATES}
+          templates={templates}
           onApplyTemplate={applyTemplate}
+          onDeleteTemplate={deleteTemplate}
+          onSaveCurrentAsTemplate={saveCurrentAsTemplate}
+          quickTemplates={QUICK_TEMPLATES}
+          onApplyQuickTemplate={applyQuickTemplate}
           onClearFilters={clearFilters}
+          onOpenWizard={() => setWizardOpen(true)}
+          onExportAllCSV={exportAllCSV}
         />
         <Results
           leads={pageLeads}
@@ -255,6 +302,27 @@ function App() {
           onNext={() => setPage(p => (start + pageSize < total ? p + 1 : p))}
         />
       </div>
+
+      {wizardOpen && (
+        <Wizard
+          onClose={() => setWizardOpen(false)}
+          onCreate={({ categoria, nicho, cidade, uf, cep, nome }) => {
+            setCategoria(categoria || '');
+            setNicho(nicho || '');
+            setCidade(cidade || '');
+            setUf(uf || '');
+            setCep(cep || '');
+            const newCamp: Campaign = {
+              id: crypto.randomUUID(),
+              nome: nome || `${categoria || 'Geral'} • ${nicho || 'Todos'} • ${cidade || uf || 'Brasil'}`,
+              categoria: categoria || '', nicho: nicho || '', cidade: cidade || '', uf: uf || '', cep: cep || undefined,
+              createdAt: new Date().toISOString()
+            };
+            persistCampaigns([newCamp, ...campaigns]);
+            setWizardOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
