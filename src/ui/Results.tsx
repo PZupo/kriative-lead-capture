@@ -45,7 +45,7 @@ export default function Results({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <section className="bg-card rounded-base border border-border p-4 relative">
+    <section className="bg-card rounded-base border border-border p-4 relative shadow-sm">
       {/* overlay de loading */}
       {loading && (
         <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] rounded-base flex items-center justify-center z-10">
@@ -76,7 +76,7 @@ export default function Results({
 
       <ul className="space-y-3">
         {visible.map(l => (
-          <li key={l.id} className="rounded-base border border-border p-3">
+          <li key={l.id} className="rounded-base border border-border p-3 shadow-sm hover:shadow transition-shadow">
             <div className="font-semibold">{l.nome}</div>
             <div className="text-sm opacity-80">
               {l.segmento} • {l.cidade} - {l.uf}
