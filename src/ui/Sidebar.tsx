@@ -14,16 +14,18 @@ type Actions = { saveCampaign: () => void; exportCSV: () => void };
 type Campaign = {
   id: string; nome: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string;
 };
-
 type Template = {
-  id: string; label: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string;
+  id: string; label: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string;
 };
+type QuickTemplate = { label: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; };
 
 export default function Sidebar({
   values, onChange, actions,
   campaigns, onLoadCampaign, onDeleteCampaign, onDuplicateCampaign,
   onExportCampaignsJSON, onImportCampaignsJSON,
-  templates, onApplyTemplate, onClearFilters
+  templates, onApplyTemplate, onDeleteTemplate, onSaveCurrentAsTemplate,
+  quickTemplates, onApplyQuickTemplate,
+  onClearFilters, onOpenWizard, onExportAllCSV
 }: {
   values: Values; onChange: Change; actions: Actions;
   campaigns: Campaign[];
@@ -34,7 +36,13 @@ export default function Sidebar({
   onImportCampaignsJSON: (file: File) => void;
   templates: Template[];
   onApplyTemplate: (id: string) => void;
+  onDeleteTemplate: (id: string) => void;
+  onSaveCurrentAsTemplate: () => void;
+  quickTemplates: QuickTemplate[];
+  onApplyQuickTemplate: (label: string) => void;
   onClearFilters: () => void;
+  onOpenWizard: () => void;
+  onExportAllCSV: () => void;
 }) {
   const { categoria, nicho, cidade, uf, cep } = values;
   const { setCategoria, setNicho, setCidade, setUf, setCep } = onChange;
@@ -63,16 +71,21 @@ export default function Sidebar({
 
       {active === 'filtros' && (
         <>
-          <h2 className="font-semibold mb-3">Filtros da campanha</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">Filtros da campanha</h2>
+            <button onClick={onOpenWizard} className="text-sm px-3 py-1 rounded-base bg-orange text-white">
+              Criar campanha
+            </button>
+          </div>
 
-          {/* Modelos rápidos */}
+          {/* Modelos rápidos fixos */}
           <div className="mb-3">
             <label className="text-sm opacity-70 block mb-1">Modelos rápidos</label>
             <div className="flex flex-wrap gap-2">
-              {templates.map(t => (
+              {quickTemplates.map(t => (
                 <button
-                  key={t.id}
-                  onClick={() => onApplyTemplate(t.id)}
+                  key={t.label}
+                  onClick={() => onApplyQuickTemplate(t.label)}
                   className="text-sm px-3 py-1 rounded-base border border-border bg-white hover:shadow-sm"
                   title={`${t.categoria} • ${t.nicho} • ${t.cidade}/${t.uf}`}
                 >
@@ -80,6 +93,35 @@ export default function Sidebar({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Modelos do usuário */}
+          {!!templates.length && (
+            <div className="mb-3">
+              <label className="text-sm opacity-70 block mb-1">Seus modelos</label>
+              <ul className="space-y-2">
+                {templates.map(t => (
+                  <li key={t.id} className="flex items-center justify-between rounded-base border border-border bg-white px-3 py-2">
+                    <button
+                      className="text-left underline"
+                      title={`${t.categoria} • ${t.nicho} • ${t.cidade}/${t.uf}`}
+                      onClick={() => onApplyTemplate(t.id)}
+                    >
+                      {t.label}
+                    </button>
+                    <button className="text-xs px-2 py-1 rounded-base border border-border" onClick={() => onDeleteTemplate(t.id)}>
+                      Excluir
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mb-3">
+            <button onClick={onSaveCurrentAsTemplate} className="text-sm px-3 py-1 rounded-base border border-border bg-white">
+              Salvar filtros como modelo
+            </button>
           </div>
 
           <label className="text-sm opacity-70">Categoria</label>
@@ -139,6 +181,9 @@ export default function Sidebar({
             </button>
             <button onClick={exportCSV} className="rounded-base bg-orange text-white px-4 py-2">
               Exportar CSV (página)
+            </button>
+            <button onClick={onExportAllCSV} className="rounded-base border border-border bg-white px-4 py-2">
+              Exportar CSV (todos)
             </button>
             <button onClick={onClearFilters} className="rounded-base border border-border bg-white px-4 py-2">
               Limpar filtros
