@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Campaigns from './Campaigns';
 
 type Values = { categoria: string; nicho: string; cidade: string; uf: string; cep: string };
@@ -40,7 +41,9 @@ export default function Sidebar({
     { id: 'campanhas', label: 'Campanhas' }
   ] as const;
   type Tab = typeof tabs[number]['id'];
-  const [active, setActive] = React.useState<Tab>('filtros');
+
+  // ✅ usar useState importado (sem React.useState)
+  const [active, setActive] = useState<Tab>('filtros');
 
   return (
     <aside className="bg-card rounded-base border border-border p-4 h-fit sticky top-4">
