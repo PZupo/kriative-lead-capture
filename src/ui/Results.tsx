@@ -14,12 +14,28 @@ function mapsUrl(nome: string, cidade: string, uf: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-export default function Results({ leads }: { leads: Lead[] }) {
+export default function Results({
+  leads, page, pageSize, total, onPrev, onNext
+}: {
+  leads: Lead[];
+  page: number;
+  pageSize: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
   return (
     <section className="bg-card rounded-base border border-border p-4">
-      <div className="flex items-center justify-between mb-4">
+      {/* topo: título + contagem + (na próxima etapa entra o campo Buscar aqui) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
         <h2 className="font-semibold">Resultados</h2>
-        <span className="text-sm opacity-70">{leads.length} lead(s)</span>
+        <div className="text-sm opacity-70">
+          {total ? `Exibindo ${from}–${to} de ${total} lead(s)` : '0 lead(s)'}
+        </div>
       </div>
 
       {!leads.length && (
@@ -49,6 +65,27 @@ export default function Results({ leads }: { leads: Lead[] }) {
           </li>
         ))}
       </ul>
+
+      {/* paginação */}
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className={`px-4 py-2 rounded-base border border-border ${page <= 1 ? 'opacity-40 cursor-not-allowed' : ''}`}
+        >
+          ◀ Anterior
+        </button>
+        <div className="text-sm opacity-70">
+          Página {page} de {totalPages}
+        </div>
+        <button
+          onClick={onNext}
+          disabled={page >= totalPages}
+          className={`px-4 py-2 rounded-base border border-border ${page >= totalPages ? 'opacity-40 cursor-not-allowed' : ''}`}
+        >
+          Próxima ▶
+        </button>
+      </div>
     </section>
   );
 }
