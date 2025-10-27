@@ -26,53 +26,72 @@ function App() {
   const [uf, setUf] = useState('');
   const [cep, setCep] = useState('');
 
+  // paginação
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   // campanhas salvas
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
-  // carregar do localStorage ao iniciar
+  // carregar campanhas
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) setCampaigns(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
-  // util: persistir campanhas
   function persist(next: Campaign[]) {
     setCampaigns(next);
     localStorage.setItem(LS_KEY, JSON.stringify(next));
   }
 
-  // leads mock (apenas visual)
-  const leads: Lead[] = useMemo(() => {
-    if (!categoria && !cidade && !uf && !nicho && !cep) return [];
+  // gerar muitos leads mock para visualizar paginação
+  const allLeads: Lead[] = useMemo(() => {
+    // base de 4 exemplos
     const base = [
       { nome: 'Clínica Bem Viver', cidade: 'São Paulo', uf: 'SP', segmento: 'Terapias integrativas' },
       { nome: 'Espaço Harmonia', cidade: 'Campinas', uf: 'SP', segmento: 'Acupuntura' },
       { nome: 'Vida Plena', cidade: 'Rio de Janeiro', uf: 'RJ', segmento: 'Coaching e bem estar' },
       { nome: 'Alma Leve Studio', cidade: 'Belo Horizonte', uf: 'MG', segmento: 'Yoga e mindfulness' }
     ];
-    return base
-      .filter(x => !cidade || x.cidade.toLowerCase().includes(cidade.toLowerCase()))
-      .filter(x => !uf || x.uf === uf.toUpperCase())
-      .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()))
-      .map((x, i) => ({
-        id: String(i + 1),
-        nome: x.nome,
-        endereco: `${x.cidade} - ${x.uf}`,
-        telefone: '(11) 90000-0000',
-        website: undefined,
+
+    // multiplica a base para ter ~40–60 itens
+    const big = Array.from({ length: 12 }).flatMap((_, k) =>
+      base.map((x, i) => ({
+        id: `${k + 1}-${i + 1}`,
+        nome: `${x.nome} ${k + 1}`,
         segmento: x.segmento,
         cidade: x.cidade,
         uf: x.uf,
+        telefone: '(11) 90000-0000',
         fonte: 'Mock' as const,
         data: new Date().toISOString()
-      }));
+      }))
+    );
+
+    // aplica filtros simples
+    const filtered = big
+      .filter(x => !cidade || x.cidade.toLowerCase().includes(cidade.toLowerCase()))
+      .filter(x => !uf || x.uf === uf.toUpperCase())
+      .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()))
+      // categoria e cep são cosméticos em mock (sem efeito real por ora)
+      ;
+
+    return filtered;
   }, [cidade, uf, nicho, categoria, cep]);
 
-  // ações
+  // sempre que filtros mudarem, volta para a 1ª página
+  useEffect(() => {
+    setPage(1);
+  }, [cidade, uf, nicho, categoria, cep]);
+
+  const total = allLeads.length;
+  const start = total ? (page - 1) * pageSize : 0;
+  const end = Math.min(start + pageSize, total);
+  const pageLeads = allLeads.slice(start, end);
+
+  // ações de campanhas
   function saveCampaign() {
     const newCamp: Campaign = {
       id: crypto.randomUUID(),
@@ -109,14 +128,14 @@ function App() {
     persist([copy, ...campaigns]);
   }
 
-  // exportar CSV dos leads atuais
+  // exportar CSV da página atual (poderemos trocar para "todos" depois)
   function exportCSV() {
-    if (!leads.length) {
+    if (!pageLeads.length) {
       alert('Nenhum lead para exportar');
       return;
     }
     const header = ['nome', 'segmento', 'cidade', 'uf', 'telefone', 'fonte', 'data'];
-    const rows = leads.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
+    const rows = pageLeads.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
     const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -140,7 +159,14 @@ function App() {
           onDeleteCampaign={deleteCampaign}
           onDuplicateCampaign={duplicateCampaign}
         />
-        <Results leads={leads} />
+        <Results
+          leads={pageLeads}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPrev={() => setPage(p => Math.max(1, p - 1))}
+          onNext={() => setPage(p => (start + pageSize < total ? p + 1 : p))}
+        />
       </div>
     </div>
   );
