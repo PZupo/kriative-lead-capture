@@ -1,4 +1,13 @@
-import type { Lead } from '../main'
+export type Lead = {
+  id: string;
+  nome: string;
+  segmento: string;
+  cidade: string;
+  uf: string;
+  telefone?: string;
+  fonte: 'Mock';
+  data: string;
+};
 
 export default function Results({ leads }: { leads: Lead[] }) {
   return (
@@ -11,7 +20,7 @@ export default function Results({ leads }: { leads: Lead[] }) {
       {!leads.length && (
         <p className="opacity-70">
           Use os filtros ao lado para simular uma busca. Os dados serão reais quando
-          ativarmos a integração com Google Places.
+          ativarmos o Google Places.
         </p>
       )}
 
@@ -28,5 +37,5 @@ export default function Results({ leads }: { leads: Lead[] }) {
         ))}
       </ul>
     </section>
-  )
+  );
 }
