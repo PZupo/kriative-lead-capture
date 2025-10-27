@@ -1,19 +1,19 @@
-type Values = { categoria: string; nicho: string; cidade: string; uf: string; cep: string }
+type Values = { categoria: string; nicho: string; cidade: string; uf: string; cep: string };
 type Change = {
-  setCategoria: (v: string) => void
-  setNicho: (v: string) => void
-  setCidade: (v: string) => void
-  setUf: (v: string) => void
-  setCep: (v: string) => void
-}
-type Actions = { saveCampaign: () => void; exportCSV: () => void }
+  setCategoria: (v: string) => void;
+  setNicho: (v: string) => void;
+  setCidade: (v: string) => void;
+  setUf: (v: string) => void;
+  setCep: (v: string) => void;
+};
+type Actions = { saveCampaign: () => void; exportCSV: () => void };
 
 export default function Sidebar({
   values, onChange, actions
 }: { values: Values; onChange: Change; actions: Actions }) {
-  const { categoria, nicho, cidade, uf, cep } = values
-  const { setCategoria, setNicho, setCidade, setUf, setCep } = onChange
-  const { saveCampaign, exportCSV } = actions
+  const { categoria, nicho, cidade, uf, cep } = values;
+  const { setCategoria, setNicho, setCidade, setUf, setCep } = onChange;
+  const { saveCampaign, exportCSV } = actions;
 
   return (
     <aside className="bg-card rounded-base border border-border p-4 h-fit sticky top-4">
@@ -71,19 +71,13 @@ export default function Sidebar({
       />
 
       <div className="flex flex-col gap-2">
-        <button
-          onClick={saveCampaign}
-          className="rounded-base bg-teal text-white px-4 py-2"
-        >
+        <button onClick={saveCampaign} className="rounded-base bg-teal text-white px-4 py-2">
           Salvar Campanha
         </button>
-        <button
-          onClick={exportCSV}
-          className="rounded-base bg-orange text-white px-4 py-2"
-        >
+        <button onClick={exportCSV} className="rounded-base bg-orange text-white px-4 py-2">
           Exportar CSV
         </button>
       </div>
     </aside>
-  )
+  );
 }
