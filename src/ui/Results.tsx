@@ -9,6 +9,11 @@ export type Lead = {
   data: string;
 };
 
+function mapsUrl(nome: string, cidade: string, uf: string) {
+  const q = `${nome}, ${cidade} - ${uf}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+
 export default function Results({ leads }: { leads: Lead[] }) {
   return (
     <section className="bg-card rounded-base border border-border p-4">
@@ -33,6 +38,14 @@ export default function Results({ leads }: { leads: Lead[] }) {
             </div>
             {l.telefone && <div className="text-sm opacity-80">Tel: {l.telefone}</div>}
             <div className="text-xs opacity-60 mt-1">Fonte: {l.fonte}</div>
+            <a
+              className="inline-block mt-2 text-sm underline"
+              href={mapsUrl(l.nome, l.cidade, l.uf)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Abrir no Google Maps
+            </a>
           </li>
         ))}
       </ul>
