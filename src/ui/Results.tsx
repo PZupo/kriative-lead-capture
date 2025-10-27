@@ -17,7 +17,7 @@ function mapsUrl(nome: string, cidade: string, uf: string) {
 }
 
 export default function Results({
-  leads, page, pageSize, total, onPrev, onNext
+  leads, page, pageSize, total, onPrev, onNext, loading = false
 }: {
   leads: Lead[];
   page: number;
@@ -25,8 +25,8 @@ export default function Results({
   total: number;
   onPrev: () => void;
   onNext: () => void;
+  loading?: boolean;
 }) {
-
   const [search, setSearch] = useState('');
 
   const filteredLeads = useMemo(() => {
@@ -45,18 +45,24 @@ export default function Results({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <section className="bg-card rounded-base border border-border p-4">
+    <section className="bg-card rounded-base border border-border p-4 relative">
+      {/* overlay de loading */}
+      {loading && (
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] rounded-base flex items-center justify-center z-10">
+          <div className="animate-spin w-6 h-6 rounded-full border-2 border-teal border-t-transparent"></div>
+          <span className="ml-2 text-sm opacity-70">Carregando…</span>
+        </div>
+      )}
 
-      {/* Topo: título + contagem */}
+      {/* topo */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <h2 className="font-semibold">Resultados</h2>
-
         <div className="text-sm opacity-70">
           {total ? `Exibindo ${from}–${to} de ${total} lead(s)` : '0 lead(s)'}
         </div>
       </div>
 
-      {/* Campo de busca */}
+      {/* busca */}
       <input
         value={search}
         onChange={e => setSearch(e.target.value)}
@@ -64,10 +70,8 @@ export default function Results({
         className="w-full rounded-base border border-border bg-white px-3 py-2 mb-4"
       />
 
-      {!visible.length && (
-        <p className="opacity-70">
-          Nenhum lead encontrado com esse termo.
-        </p>
+      {!visible.length && !loading && (
+        <p className="opacity-70">Nenhum lead encontrado com esse termo.</p>
       )}
 
       <ul className="space-y-3">
@@ -95,25 +99,22 @@ export default function Results({
       <div className="mt-6 flex items-center justify-between">
         <button
           onClick={onPrev}
-          disabled={page <= 1}
-          className={`px-4 py-2 rounded-base border border-border ${page <= 1 ? 'opacity-40 cursor-not-allowed' : ''}`}
+          disabled={page <= 1 || loading}
+          className={`px-4 py-2 rounded-base border border-border ${page <= 1 || loading ? 'opacity-40 cursor-not-allowed' : ''}`}
         >
           ◀ Anterior
         </button>
-
         <div className="text-sm opacity-70">
           Página {page} de {totalPages}
         </div>
-
         <button
           onClick={onNext}
-          disabled={page >= totalPages}
-          className={`px-4 py-2 rounded-base border border-border ${page >= totalPages ? 'opacity-40 cursor-not-allowed' : ''}`}
+          disabled={page >= totalPages || loading}
+          className={`px-4 py-2 rounded-base border border-border ${page >= totalPages || loading ? 'opacity-40 cursor-not-allowed' : ''}`}
         >
           Próxima ▶
         </button>
       </div>
-
     </section>
   );
 }
