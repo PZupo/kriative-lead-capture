@@ -19,7 +19,7 @@ export type Campaign = {
 const LS_KEY = 'kriative_campaigns';
 
 function App() {
-  // filtros da busca atual
+  // filtros
   const [categoria, setCategoria] = useState('');
   const [nicho, setNicho] = useState('');
   const [cidade, setCidade] = useState('');
@@ -30,10 +30,13 @@ function App() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // campanhas salvas
+  // loading suave quando filtros mudam
+  const [loading, setLoading] = useState(false);
+
+  // campanhas
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
-  // carregar campanhas
+  // carregar campanhas salvas
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -46,9 +49,8 @@ function App() {
     localStorage.setItem(LS_KEY, JSON.stringify(next));
   }
 
-  // gerar muitos leads mock para visualizar paginação
+  // gerar vários leads mock e aplicar filtros
   const allLeads: Lead[] = useMemo(() => {
-    // base de 4 exemplos
     const base = [
       { nome: 'Clínica Bem Viver', cidade: 'São Paulo', uf: 'SP', segmento: 'Terapias integrativas' },
       { nome: 'Espaço Harmonia', cidade: 'Campinas', uf: 'SP', segmento: 'Acupuntura' },
@@ -56,7 +58,6 @@ function App() {
       { nome: 'Alma Leve Studio', cidade: 'Belo Horizonte', uf: 'MG', segmento: 'Yoga e mindfulness' }
     ];
 
-    // multiplica a base para ter ~40–60 itens
     const big = Array.from({ length: 12 }).flatMap((_, k) =>
       base.map((x, i) => ({
         id: `${k + 1}-${i + 1}`,
@@ -70,20 +71,18 @@ function App() {
       }))
     );
 
-    // aplica filtros simples
-    const filtered = big
+    return big
       .filter(x => !cidade || x.cidade.toLowerCase().includes(cidade.toLowerCase()))
       .filter(x => !uf || x.uf === uf.toUpperCase())
-      .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()))
-      // categoria e cep são cosméticos em mock (sem efeito real por ora)
-      ;
-
-    return filtered;
+      .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()));
   }, [cidade, uf, nicho, categoria, cep]);
 
-  // sempre que filtros mudarem, volta para a 1ª página
+  // quando filtros mudarem: volta página e mostra loading curto
   useEffect(() => {
     setPage(1);
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 400); // sensação pro
+    return () => clearTimeout(t);
   }, [cidade, uf, nicho, categoria, cep]);
 
   const total = allLeads.length;
@@ -128,7 +127,7 @@ function App() {
     persist([copy, ...campaigns]);
   }
 
-  // exportar CSV da página atual (poderemos trocar para "todos" depois)
+  // CSV da página atual
   function exportCSV() {
     if (!pageLeads.length) {
       alert('Nenhum lead para exportar');
@@ -146,6 +145,32 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  // JSON das campanhas (backup/compartilhar)
+  function exportCampaignsJSON() {
+    const blob = new Blob([JSON.stringify(campaigns, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'campanhas.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importCampaignsJSON(file: File) {
+    try {
+      const text = await file.text();
+      const arr = JSON.parse(text) as Campaign[];
+      // validação simples + deduplicação por id
+      const valid = Array.isArray(arr) ? arr.filter(x => x && x.id && x.nome) : [];
+      const exists = new Set(campaigns.map(c => c.id));
+      const merged = [...valid.filter(v => !exists.has(v.id)), ...campaigns];
+      persist(merged);
+      alert(`Importadas ${merged.length - campaigns.length} campanha(s).`);
+    } catch {
+      alert('Arquivo inválido. Selecione um JSON exportado pelo app.');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg text-fg">
       <Navbar />
@@ -158,9 +183,12 @@ function App() {
           onLoadCampaign={loadCampaign}
           onDeleteCampaign={deleteCampaign}
           onDuplicateCampaign={duplicateCampaign}
+          onExportCampaignsJSON={exportCampaignsJSON}
+          onImportCampaignsJSON={importCampaignsJSON}
         />
         <Results
           leads={pageLeads}
+          loading={loading}
           page={page}
           pageSize={pageSize}
           total={total}
