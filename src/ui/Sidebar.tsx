@@ -12,7 +12,7 @@ type Change = {
 type Actions = { saveCampaign: () => void; exportCSV: () => void };
 
 type Campaign = {
-  id: string; nome: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string;
+  id: string; nome: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string; status?: 'draft' | 'active' | 'archived';
 };
 type Template = {
   id: string; label: string; categoria: string; nicho: string; cidade: string; uf: string; cep?: string; createdAt: string;
@@ -21,17 +21,19 @@ type QuickTemplate = { label: string; categoria: string; nicho: string; cidade: 
 
 export default function Sidebar({
   values, onChange, actions,
-  campaigns, onLoadCampaign, onDeleteCampaign, onDuplicateCampaign,
+  campaigns, onLoadCampaign, onDeleteCampaign, onDuplicateCampaign, onSetCampaignStatus,
   onExportCampaignsJSON, onImportCampaignsJSON,
   templates, onApplyTemplate, onDeleteTemplate, onSaveCurrentAsTemplate,
   quickTemplates, onApplyQuickTemplate,
-  onClearFilters, onOpenWizard, onExportAllCSV
+  onClearFilters, onOpenWizard, onExportAllCSV,
+  onFetchPlacesMock, onClearExternalResults, hasExternalResults
 }: {
   values: Values; onChange: Change; actions: Actions;
   campaigns: Campaign[];
   onLoadCampaign: (c: Campaign) => void;
   onDeleteCampaign: (id: string) => void;
   onDuplicateCampaign: (id: string) => void;
+  onSetCampaignStatus: (id: string, status: Campaign['status']) => void;
   onExportCampaignsJSON: () => void;
   onImportCampaignsJSON: (file: File) => void;
   templates: Template[];
@@ -43,6 +45,9 @@ export default function Sidebar({
   onClearFilters: () => void;
   onOpenWizard: () => void;
   onExportAllCSV: () => void;
+  onFetchPlacesMock: () => void;
+  onClearExternalResults: () => void;
+  hasExternalResults: boolean;
 }) {
   const { categoria, nicho, cidade, uf, cep } = values;
   const { setCategoria, setNicho, setCidade, setUf, setCep } = onChange;
@@ -124,6 +129,7 @@ export default function Sidebar({
             </button>
           </div>
 
+          {/* Campos */}
           <label className="text-sm opacity-70">Categoria</label>
           <select
             value={categoria}
@@ -175,6 +181,7 @@ export default function Sidebar({
             className="w-full rounded-base border border-border bg-white px-3 py-2 mb-4"
           />
 
+          {/* Ações principais */}
           <div className="flex flex-col gap-2">
             <button onClick={saveCampaign} className="rounded-base bg-teal text-white px-4 py-2">
               Salvar Campanha
@@ -188,6 +195,25 @@ export default function Sidebar({
             <button onClick={onClearFilters} className="rounded-base border border-border bg-white px-4 py-2">
               Limpar filtros
             </button>
+          </div>
+
+          {/* Pré-wire Google Places */}
+          <div className="mt-4 rounded-base border border-border p-3 bg-white">
+            <div className="font-semibold mb-2">Google Places (pré-wire)</div>
+            <div className="flex flex-col gap-2">
+              <button onClick={onFetchPlacesMock} className="rounded-base bg-teal text-white px-4 py-2">
+                Buscar (mock) com filtros atuais
+              </button>
+              {hasExternalResults && (
+                <button onClick={onClearExternalResults} className="rounded-base border border-border bg-white px-4 py-2">
+                  Voltar aos resultados locais
+                </button>
+              )}
+              <p className="text-xs opacity-70">
+                Quando adicionarmos a chave <code>VITE_GOOGLE_PLACES_API_KEY</code> na Vercel,
+                trocaremos do mock para a API real via rota protegida.
+              </p>
+            </div>
           </div>
         </>
       )}
@@ -226,6 +252,7 @@ export default function Sidebar({
             onLoad={onLoadCampaign}
             onDelete={onDeleteCampaign}
             onDuplicate={onDuplicateCampaign}
+            onSetStatus={onSetCampaignStatus}
           />
         </>
       )}
