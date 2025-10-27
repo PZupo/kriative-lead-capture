@@ -5,6 +5,7 @@ import Navbar from './ui/Navbar';
 import Sidebar from './ui/Sidebar';
 import Results, { type Lead } from './ui/Results';
 import Wizard from './ui/Wizard';
+import { searchPlaces, type PlaceResult } from './lib/places';
 
 export type Campaign = {
   id: string;
@@ -15,6 +16,7 @@ export type Campaign = {
   uf: string;
   cep?: string;
   createdAt: string;
+  status?: 'draft' | 'active' | 'archived';
 };
 
 type Template = {
@@ -53,6 +55,17 @@ function App() {
   // wizard modal
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  // resultados externos (pré-wire Google Places)
+  const [externalLeads, setExternalLeads] = useState<Lead[] | null>(null);
+
+  // quick templates fixos
+  const QUICK_TEMPLATES: Omit<Template, 'id' | 'createdAt'>[] = [
+    { label: 'Psicologia • São Paulo SP', categoria: 'Clínicas e terapias', nicho: 'Psicologia', cidade: 'São Paulo', uf: 'SP' },
+    { label: 'Acupuntura • Rio de Janeiro RJ', categoria: 'Estúdios de bem estar', nicho: 'Acupuntura', cidade: 'Rio de Janeiro', uf: 'RJ' },
+    { label: 'Yoga • Belo Horizonte MG', categoria: 'Academias e yoga', nicho: 'Yoga', cidade: 'Belo Horizonte', uf: 'MG' }
+  ];
+
+  // load inicial
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -72,13 +85,6 @@ function App() {
     setTemplates(next);
     localStorage.setItem(LS_TPL, JSON.stringify(next));
   }
-
-  // modelos rápidos fixos (visuais)
-  const QUICK_TEMPLATES: Omit<Template, 'id' | 'createdAt'>[] = [
-    { label: 'Psicologia • São Paulo SP', categoria: 'Clínicas e terapias', nicho: 'Psicologia', cidade: 'São Paulo', uf: 'SP' },
-    { label: 'Acupuntura • Rio de Janeiro RJ', categoria: 'Estúdios de bem estar', nicho: 'Acupuntura', cidade: 'Rio de Janeiro', uf: 'RJ' },
-    { label: 'Yoga • Belo Horizonte MG', categoria: 'Academias e yoga', nicho: 'Yoga', cidade: 'Belo Horizonte', uf: 'MG' }
-  ];
 
   // leads mock + filtros
   const allLeads: Lead[] = useMemo(() => {
@@ -108,7 +114,7 @@ function App() {
       .filter(x => !nicho || x.segmento.toLowerCase().includes(nicho.toLowerCase()));
   }, [cidade, uf, nicho, categoria, cep]);
 
-  // reset de página e loading quando filtros mudam
+  // reset de página + loading em mudança de filtros
   useEffect(() => {
     setPage(1);
     setLoading(true);
@@ -116,10 +122,15 @@ function App() {
     return () => clearTimeout(t);
   }, [cidade, uf, nicho, categoria, cep]);
 
-  const total = allLeads.length;
-  const start = total ? (page - 1) * pageSize : 0;
-  const end = Math.min(start + pageSize, total);
+  // paginação
+  const totalLocal = allLeads.length;
+  const start = totalLocal ? (page - 1) * pageSize : 0;
+  const end = Math.min(start + pageSize, totalLocal);
   const pageLeads = allLeads.slice(start, end);
+
+  // dataset efetivo (local ou externo)
+  const effectiveLeads = externalLeads ?? pageLeads;
+  const effectiveTotal = externalLeads ? externalLeads.length : totalLocal;
 
   // ações de campanha
   function saveCampaign() {
@@ -127,10 +138,16 @@ function App() {
       id: crypto.randomUUID(),
       nome: `${categoria || 'Geral'} • ${nicho || 'Todos'} • ${cidade || uf || 'Brasil'}`,
       categoria, nicho, cidade, uf, cep: cep || undefined,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      status: 'active'
     };
     persistCampaigns([newCamp, ...campaigns]);
     alert('Campanha salva com sucesso');
+  }
+
+  function setCampaignStatus(id: string, status: Campaign['status']) {
+    const next = campaigns.map(c => (c.id === id ? { ...c, status } : c));
+    persistCampaigns(next);
   }
 
   function loadCampaign(c: Campaign) {
@@ -158,7 +175,7 @@ function App() {
     persistCampaigns([copy, ...campaigns]);
   }
 
-  // CSV: página atual
+  // CSV (página) e (todos locais)
   function exportCSV() {
     if (!pageLeads.length) {
       alert('Nenhum lead para exportar');
@@ -169,14 +186,14 @@ function App() {
     downloadCSV(header, rows, 'leads.csv');
   }
 
-  // CSV: todos
   function exportAllCSV() {
-    if (!allLeads.length) {
+    const dataset = externalLeads ?? allLeads;
+    if (!dataset.length) {
       alert('Nenhum lead para exportar');
       return;
     }
     const header = ['nome', 'segmento', 'cidade', 'uf', 'telefone', 'fonte', 'data'];
-    const rows = allLeads.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
+    const rows = dataset.map(l => [l.nome, l.segmento, l.cidade, l.uf, l.telefone || '', l.fonte, l.data]);
     downloadCSV(header, rows, 'leads_todos.csv');
   }
 
@@ -248,7 +265,6 @@ function App() {
     persistTemplates(templates.filter(t => t.id !== id));
   }
 
-  // templates rápidos fixos
   function applyQuickTemplate(label: string) {
     const t = QUICK_TEMPLATES.find(x => x.label === label);
     if (!t) return;
@@ -259,13 +275,37 @@ function App() {
     setCep(t.cep || '');
   }
 
-  // limpar filtros
   function clearFilters() {
     setCategoria('');
     setNicho('');
     setCidade('');
     setUf('');
     setCep('');
+  }
+
+  // Pré-wire: buscar no “Google Places” (mock/real)
+  async function fetchPlacesNow() {
+    setLoading(true);
+    try {
+      const results: PlaceResult[] = await searchPlaces({ categoria, nicho, cidade, uf, cep });
+      const mapped: Lead[] = results.map((r, i) => ({
+        id: `ext-${i + 1}`,
+        nome: r.name,
+        segmento: r.category || 'Local',
+        cidade: r.city || cidade || '',
+        uf: r.uf || uf || '',
+        telefone: r.phone,
+        fonte: 'Mock',
+        data: new Date().toISOString()
+      }));
+      setExternalLeads(mapped);
+      setPage(1);
+    } finally {
+      setLoading(false);
+    }
+  }
+  function clearExternalResults() {
+    setExternalLeads(null);
   }
 
   return (
@@ -280,6 +320,7 @@ function App() {
           onLoadCampaign={loadCampaign}
           onDeleteCampaign={deleteCampaign}
           onDuplicateCampaign={duplicateCampaign}
+          onSetCampaignStatus={setCampaignStatus}
           onExportCampaignsJSON={exportCampaignsJSON}
           onImportCampaignsJSON={importCampaignsJSON}
           templates={templates}
@@ -291,15 +332,18 @@ function App() {
           onClearFilters={clearFilters}
           onOpenWizard={() => setWizardOpen(true)}
           onExportAllCSV={exportAllCSV}
+          onFetchPlacesMock={fetchPlacesNow}
+          onClearExternalResults={clearExternalResults}
+          hasExternalResults={!!externalLeads}
         />
         <Results
-          leads={pageLeads}
+          leads={effectiveLeads}
           loading={loading}
           page={page}
           pageSize={pageSize}
-          total={total}
+          total={effectiveTotal}
           onPrev={() => setPage(p => Math.max(1, p - 1))}
-          onNext={() => setPage(p => (start + pageSize < total ? p + 1 : p))}
+          onNext={() => setPage(p => (page * pageSize < effectiveTotal ? p + 1 : p))}
         />
       </div>
 
@@ -316,7 +360,8 @@ function App() {
               id: crypto.randomUUID(),
               nome: nome || `${categoria || 'Geral'} • ${nicho || 'Todos'} • ${cidade || uf || 'Brasil'}`,
               categoria: categoria || '', nicho: nicho || '', cidade: cidade || '', uf: uf || '', cep: cep || undefined,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              status: 'active'
             };
             persistCampaigns([newCamp, ...campaigns]);
             setWizardOpen(false);
