@@ -16,3 +16,8 @@
 body {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
+
+/* opcional: classe utilitária para dar respiro sob o shell sem tocar no layout global */
+.safe-top {
+  padding-top: 64px; /* use local, não no body */
+}
