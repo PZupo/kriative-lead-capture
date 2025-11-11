@@ -1,18 +1,127 @@
-/* Design Tokens */
-:root {
-  --bg: #F5F5F5;
-  --fg: #333333;
-  --card: #FFFFFF;
-  --border: #E5E5E5;
-
-  --color-teal: #008080;
-  --color-orange: #FF8C00;
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+/* -------------------------------------------------------
+   TOKENS — tema claro/escuro
+   ------------------------------------------------------- */
+:root {
+  --nav-h: 64px;
+
+  --teal: #008080;
+  --orange: #FF8C00;
+
+  /* Light */
+  --bg: #F4EFE7;
+  --fg: #2A2A2A;
+  --card: #FFFFFF;
+  --border: #D8CFC4;
+  --muted: #0000000f;
 }
+html.dark {
+  /* Dark */
+  --bg: #1A1A1A;
+  --fg: #FFFFFF;
+  --card: #2A2A2A;
+  --border: #3A3A3A;
+  --muted: #FFFFFF14;
+}
+
+/* -------------------------------------------------------
+   BASE
+   ------------------------------------------------------- */
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Utilitários alinhados ao projeto */
+.bg-bg       { background-color: var(--bg); }
+.text-fg     { color: var(--fg); }
+.bg-card     { background-color: var(--card); }
+.border-card { border-color: var(--border); }
+
+/* Espaço para o conteúdo não colidir com a TopNav fixa (se usar fixed) */
+:root { --content-pt: calc(var(--nav-h) + 8px); }
+
+/* -------------------------------------------------------
+   FORM CONTROLS — corrige cores no dark mode
+   ------------------------------------------------------- */
+input, select, textarea, button {
+  @apply outline-none;
+}
+
+/* força cor/fundo/borda nos campos em ambos os temas */
+input, select, textarea {
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem; /* mesma vibe do projeto */
+}
+
+/* placeholder visível nos dois temas */
+input::placeholder,
+textarea::placeholder {
+  /* mistura controlada a partir da cor do texto atual */
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  opacity: 1; /* alguns browsers reduzem a opacidade por padrão */
+}
+
+/* foco consistente */
+input:focus, select:focus, textarea:focus, button:focus-visible {
+  box-shadow: 0 0 0 3px color(display-p3 0 0.5 0.5 / 0.35);
+}
+
+/* -------------------------------------------------------
+   COMPONENTES DE LAYOUT
+   ------------------------------------------------------- */
+.container-soft { @apply mx-auto max-w-7xl; }
+
+.card {
+  @apply rounded-xl border p-4;
+  border-color: var(--border);
+  background: var(--card);
+}
+
+/* -------------------------------------------------------
+   TABELA — polimento do Results
+   ------------------------------------------------------- */
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.table thead th {
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.table tbody tr:last-child td { border-bottom: none; }
+
+/* Campo de busca */
+.search-input {
+  @apply w-full rounded-md px-3 py-2;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+.search-input::placeholder {
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+}
+
+/* Padding extra para a área principal, se necessário */
+.main-pad { padding-top: 10px; }
